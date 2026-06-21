@@ -43,7 +43,16 @@ class DiceView(ctk.CTkFrame):
         ctk.CTkButton(btn_row, text="💾 Сохранить формулу", command=self._save_formula, width=140, height=38).pack(side="left", padx=5)
         
         result_frame = ctk.CTkFrame(self); result_frame.grid(row=3, column=0, sticky="nsew", padx=10, pady=15)
-        self.result_label = ctk.CTkLabel(result_frame, text="—", font=ctk.CTkFont(size=90, weight="bold"), text_color="#2ECC71"); self.result_label.pack(fill="both", expand=True, pady=20)
+        # Исправлено: уменьшен размер шрифта и добавлен перенос строк
+        self.result_label = ctk.CTkLabel(
+            result_frame, 
+            text="—", 
+            font=ctk.CTkFont(size=40, weight="bold"), 
+            text_color="#2ECC71",
+            wraplength=700,
+            justify="center"
+        )
+        self.result_label.pack(fill="both", expand=True, pady=20)
         self.mode_label = ctk.CTkLabel(result_frame, text="", font=ctk.CTkFont(size=14, weight="bold")); self.mode_label.pack(pady=5)
         
         history_frame = ctk.CTkFrame(self); history_frame.grid(row=4, column=0, sticky="nsew", padx=10, pady=5)
@@ -90,7 +99,7 @@ class DiceView(ctk.CTkFrame):
         else: self.mode_label.configure(text="")
         try:
             self.db.execute("INSERT INTO `dicerollhistory` (user_id, Formula, Result, Details) VALUES (%s, %s, %s, %s)", 
-                          (self.user_id, f"{original_formula} [{'преимущество' if advantage else 'помеха' if disadvantage else 'обычный'}]", result, details))
+                            (self.user_id, f"{original_formula} [{'преимущество' if advantage else 'помеха' if disadvantage else 'обычный'}]", result, details))
             self.db.commit(); self._load_history()
         except Exception as e: print(f"Ошибка сохранения истории: {e}")
 
@@ -124,13 +133,28 @@ class DiceView(ctk.CTkFrame):
         except Exception as e: print(f"Ошибка загрузки формул: {e}")
 
     def _use_saved_formula(self, formula: str):
-        self.formula_entry.delete(0, "end"); self.formula_entry.insert(0, formula)
-        match = re.match(r'(\d+)d(\d+)([+-]\d+)?', formula)
+        self.formula_entry.delete(0, "end")
+        self.formula_entry.insert(0, formula)
+    
+        match = re.fullmatch(r'(\d+)d(\d+)([+-]\d+)?', formula)
+    
         if match:
-            self.count_entry.delete(0, "end"); self.count_entry.insert(0, match.group(1))
+            self.count_entry.delete(0, "end")
+            self.count_entry.insert(0, match.group(1))
             self.current_dice_sides = int(match.group(2))
-            self.mod_entry.delete(0, "end"); self.mod_entry.insert(0, match.group(3) or "0")
+        
+            mod_value = match.group(3) or "0"
+            if mod_value.startswith("+"):
+                mod_value = mod_value[1:] 
+        
+            self.mod_entry.delete(0, "end")
+            self.mod_entry.insert(0, mod_value)
             self._update_formula()
+        else:
+            self.count_entry.delete(0, "end")
+            self.count_entry.insert(0, "1")
+            self.mod_entry.delete(0, "end")
+            self.mod_entry.insert(0, "0")
 
     def _save_formula(self):
         formula = self.formula_entry.get().strip()

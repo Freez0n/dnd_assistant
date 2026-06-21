@@ -72,16 +72,28 @@ class SettingsView(ctk.CTkFrame):
                      text_color="#E74C3C", justify="center", font=ctk.CTkFont(weight="bold")).pack(pady=15)
         
         def do_reset():
-            tables = ["combatparticipant", "combatsession", "note", "item", "skill", "skillproficiency", 
-                      "savingthrows", "savingthrowsproficiency", "characterstats", "attribute", "character"]
-            for table in tables:
-                self.db.execute(f"DELETE FROM `{table}` WHERE user_id = %s", (self.user_id,))
-            self.db.commit()
-            dialog.destroy()
-            msg = ctk.CTkToplevel(self); msg.title("✅ Готово"); msg.geometry("300x120")
-            self._center_window(msg, 300, 120); msg.transient(self); msg.grab_set()
-            ctk.CTkLabel(msg, text="Ваши данные очищены.").pack(pady=15)
-            ctk.CTkButton(msg, text="OK", command=msg.destroy).pack()
+            tables_with_user_id = [
+                "combatsession", 
+                "note", 
+                "item", 
+                "character",
+                "monster", 
+                "dicerollhistory", 
+                "saveddiceformula"
+            ]
+            
+            try:
+                for table in tables_with_user_id:
+                    self.db.execute(f"DELETE FROM `{table}` WHERE user_id = %s", (self.user_id,))
+                self.db.commit()
+                
+                dialog.destroy()
+                msg = ctk.CTkToplevel(self); msg.title("✅ Готово"); msg.geometry("300x120")
+                self._center_window(msg, 300, 120); msg.transient(self); msg.grab_set()
+                ctk.CTkLabel(msg, text="Ваши данные успешно очищены.").pack(pady=25)
+                ctk.CTkButton(msg, text="OK", command=msg.destroy, width=100).pack()
+            except Exception as e:
+                print(f"Ошибка при сбросе данных: {e}")
 
         ctk.CTkButton(dialog, text="️ УДАЛИТЬ", fg_color="#E74C3C", command=do_reset).pack(pady=10)
         ctk.CTkButton(dialog, text="Отмена", command=dialog.destroy).pack()

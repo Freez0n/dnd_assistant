@@ -25,7 +25,6 @@ class GeneratorView(ctk.CTkFrame):
             ctk.CTkButton(btn_frame, text="Генерировать", width=100, height=28, command=lambda f=func, v=result_var: v.set(f())).pack(side="left", padx=5)
             ctk.CTkButton(btn_frame, text="Копировать", width=80, height=28, command=lambda v=result_var: self._copy_to_clipboard(v.get())).pack(side="left", padx=5)
         self._create_generator_block(self.content_frame, "🌤️ Погода", Generators.generate_weather, None)
-        self._create_generator_block(self.content_frame, "⚔️ Случайная встреча", Generators.generate_encounter, ["лес", "горы", "подземелье", "город", "пустошь"], "лес")
         self._create_generator_block(self.content_frame, "✨ Эффект Wild Magic", Generators.generate_wild_magic, None)
     
     def _create_generator_block(self, parent, title: str, generator_func, options: list = None, default_option: str = None):

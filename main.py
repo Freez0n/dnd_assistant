@@ -17,7 +17,8 @@ class DNDAssistantApp(ctk.CTk):
         self.geometry("1200x750")
         self.minsize(1200, 750)
         ctk.set_appearance_mode("dark")
-
+        self.bind_class("CTkEntry", "<Control-v>", self._global_paste)
+        self.bind_class("CTkTextbox", "<Control-v>", self._global_paste)
         
         self.db = DatabaseManager(password='1996')
         self.current_user_id = None
@@ -35,9 +36,14 @@ class DNDAssistantApp(ctk.CTk):
         else:
             self._open_auth_window()
 
+    def _global_paste(self, event):
+        try:
+            clipboard_text = self.clipboard_get()
+            event.widget.insert(ctk.INSERT, clipboard_text)
+        except:
+            pass
+
     def _build_main_interface(self):
-        """Создает основной интерфейс приложения"""
-        # Очищаем старый интерфейс если был
         for widget in self.winfo_children():
             widget.destroy()
             

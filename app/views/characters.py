@@ -37,12 +37,12 @@ class CharactersView(ctk.CTkFrame):
         stats = self.db.fetchone("SELECT * FROM `characterstats` WHERE idCharacter = %s", (char['idCharacter'],))
         if stats:
             hp_frame = ctk.CTkFrame(card, fg_color="transparent", width=200); hp_frame.pack(side="right", padx=10, pady=5)
-            ctk.CTkLabel(hp_frame, text=f"HP: {stats['CurrentHP']}/{stats['MaxHP']}", font=ctk.CTkFont(size=10), text_color="#BBBBBB").pack()
+            ctk.CTkLabel(hp_frame, text=f"HP: {stats['CurrentHP']}/{stats['MaxHP']}", font=ctk.CTkFont(size=15), text_color="#BBBBBB").pack()
             hp_progress = ctk.CTkProgressBar(hp_frame, width=180, progress_color="#E74C3C"); hp_progress.pack(pady=2); hp_progress.set(stats['CurrentHP'] / max(stats['MaxHP'], 1))
             
             xp_frame = ctk.CTkFrame(card, fg_color="transparent", width=200); xp_frame.pack(side="right", padx=10, pady=5)
             next_xp = self._get_next_xp(char['Level'])
-            ctk.CTkLabel(xp_frame, text=f"XP: {char['Experience']}/{next_xp}", font=ctk.CTkFont(size=10), text_color="#BBBBBB").pack()
+            ctk.CTkLabel(xp_frame, text=f"XP: {char['Experience']}/{next_xp}", font=ctk.CTkFont(size=15), text_color="#BBBBBB").pack()
             xp_progress = ctk.CTkProgressBar(xp_frame, width=180, progress_color="#2ECC71"); xp_progress.pack(pady=2); xp_progress.set(char['Experience'] / max(next_xp, 1))
         
         btn_frame = ctk.CTkFrame(card, fg_color="transparent"); btn_frame.pack(side="right", padx=10, pady=10)

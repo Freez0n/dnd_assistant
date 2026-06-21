@@ -12,24 +12,20 @@ class CombatView(ctk.CTkFrame):
         self.active_session: Optional[int] = None
         self.current_turn_index: int = 0
         
-        # Элементы интерфейса для вкладок
         self.tab_chars = self.tab_best = self.tab_manual = None
         self.manual_name = self.manual_hp = self.manual_ac = self.manual_init_bonus = None
         
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
         
-        # Панель управления
         control_frame = ctk.CTkFrame(self)
         control_frame.grid(row=0, column=0, sticky="ew", padx=10, pady=5)
         ctk.CTkLabel(control_frame, text="⚔️ Боевой трекер", font=ctk.CTkFont(size=16, weight="bold")).pack(side="left", padx=10)
         ctk.CTkButton(control_frame, text="Новый бой", command=self._start_combat, width=100).pack(side="left", padx=5)
         ctk.CTkButton(control_frame, text="Добавить участника", command=self._add_participant_dialog, width=140).pack(side="left", padx=5)
-        ctk.CTkButton(control_frame, text="Авто-инициатива", command=self._auto_initiative, width=130).pack(side="left", padx=5)
         ctk.CTkButton(control_frame, text="Следующий ход", command=self._next_turn, width=120).pack(side="left", padx=5)
         ctk.CTkButton(control_frame, text="Завершить бой", command=self._end_combat, width=120, fg_color="#E74C3C").pack(side="right", padx=5)
         
-        # Таблица участников
         self.table_frame = ctk.CTkScrollableFrame(self, label_text="Участники боя")
         self.table_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
         self.participant_rows = {}
@@ -37,7 +33,6 @@ class CombatView(ctk.CTkFrame):
 
     def _start_combat(self):
         try:
-            # Завершаем предыдущие активные бои этого пользователя
             self.db.execute("UPDATE `combatsession` SET IsActive = 0 WHERE IsActive = 1 AND user_id = %s", (self.user_id,))
             self.db.execute("INSERT INTO `combatsession` (user_id, IsActive) VALUES (%s, 1)", (self.user_id,))
             self.active_session = self.db.last_insert_id()
@@ -60,13 +55,33 @@ class CombatView(ctk.CTkFrame):
             ctk.CTkLabel(self.table_frame, text="Нет активной боевой сессии. Начните новый бой.", font=ctk.CTkFont(size=14)).pack(pady=40)
             return
             
-        header = ctk.CTkFrame(self.table_frame, fg_color="#2C3E50")
-        header.pack(fill="x", pady=(0, 5))
-        headers = [" ", "Имя", "Инициатива", "ХП", "Статус", "Действия"]
-        for i, h in enumerate(headers): 
-            ctk.CTkLabel(header, text=h, font=ctk.CTkFont(weight="bold")).grid(row=0, column=i, padx=10, pady=5, sticky="w")
+        try:
+            self.db.execute("ALTER TABLE `combatparticipant` ADD COLUMN IF NOT EXISTS `AC` INT DEFAULT 10")
+            self.db.commit()
+        except Exception:
+            try:
+                self.db.execute("ALTER TABLE `combatparticipant` ADD COLUMN `AC` INT DEFAULT 10")
+                self.db.commit()
+            except Exception:
+                pass
+
+        header = ctk.CTkFrame(self.table_frame, fg_color="#2C3E50", height=35)
+        header.pack(fill="x", pady=(0, 5), padx=4)
         
-        # Загружаем только участников текущего активного боя
+        headers = [
+            (" ", 30), 
+            ("Имя", 160), 
+            ("Инициатива", 85), 
+            ("ХП", 100), 
+            ("КД", 50), 
+            ("Статус", 100), 
+            ("Действия", 140)
+        ]
+        
+        for i, (h_text, w) in enumerate(headers): 
+            header.grid_columnconfigure(i, minsize=w, weight=0)
+            ctk.CTkLabel(header, text=h_text, font=ctk.CTkFont(weight="bold")).grid(row=0, column=i, padx=5, pady=6, sticky="w" if i == 1 else "")
+        
         participants = self.db.fetchall("""
             SELECT cp.* FROM `combatparticipant` cp 
             JOIN `combatsession` cs ON cp.idSession = cs.idSession 
@@ -76,37 +91,43 @@ class CombatView(ctk.CTkFrame):
         
         for idx, p in enumerate(participants):
             row = ctk.CTkFrame(self.table_frame)
-            row.pack(fill="x", pady=2)
+            row.pack(fill="x", pady=2, padx=4)
             
-            # Подсветка текущего хода
+
+            for i, (_, w) in enumerate(headers):
+                row.grid_columnconfigure(i, minsize=w, weight=0)
+            
             if idx == self.current_turn_index: 
                 row.configure(border_width=2, border_color="#2ECC71")
                 
-            ctk.CTkLabel(row, text="▶ " if idx == self.current_turn_index else " ", width=20).grid(row=0, column=0, padx=5)
-            ctk.CTkLabel(row, text=p['Name'], width=150, anchor="w").grid(row=0, column=1, padx=10)
-            ctk.CTkLabel(row, text=f"{p['Initiative']:+d}", width=60, anchor="center").grid(row=0, column=2, padx=5)
+            ctk.CTkLabel(row, text="▶" if idx == self.current_turn_index else " ", font=ctk.CTkFont(size=14, weight="bold"), text_color="#2ECC71").grid(row=0, column=0, padx=5, pady=6)
+            ctk.CTkLabel(row, text=p['Name'], anchor="w").grid(row=0, column=1, padx=5, pady=6, sticky="w")
+            
+            init_val = p['Initiative']
+            ctk.CTkLabel(row, text=f"{init_val:+d}" if init_val > 0 else str(init_val)).grid(row=0, column=2, padx=5, pady=6)
             
             hp_frame = ctk.CTkFrame(row, fg_color="transparent")
-            hp_frame.grid(row=0, column=3, padx=10)
+            hp_frame.grid(row=0, column=3, padx=5, pady=6)
             hp_label = ctk.CTkLabel(hp_frame, text=f"{p['CurrentHP']}/{p['MaxHP']}")
-            hp_label.pack(side="left")
-            if p['CurrentHP'] <= 0: 
-                hp_label.configure(text="Без сознания", text_color="#E74C3C")
             
-            # ✅ ЦВЕТОВАЯ ИНДИКАЦИЯ СТАТУСОВ
+            hp_label.pack() 
+            
+            ac_val = p.get('AC') if p.get('AC') is not None else 10
+            ctk.CTkLabel(row, text=str(ac_val)).grid(row=0, column=4, padx=5, pady=6)
+            
             status = p.get('Status', 'Нормальный') or 'Нормальный'
-            if status == "Нормальный": status_color = "#2ECC71"      # Зеленый
-            elif status == "Ранен": status_color = "#F39C12"        # Оранжевый
-            else: status_color = "#E74C3C"                          # Красный (Без сознания)
+            if status == "Нормальный": status_color = "#2ECC71"
+            elif status == "Ранен": status_color = "#F39C12"
+            else: status_color = "#E74C3C"
             
-            ctk.CTkLabel(row, text=status, width=100, anchor="center", text_color=status_color).grid(row=0, column=4, padx=5)
+            ctk.CTkLabel(row, text=status, font=ctk.CTkFont(weight="bold"), text_color=status_color).grid(row=0, column=5, padx=5, pady=6)
             
             btn_frame = ctk.CTkFrame(row, fg_color="transparent")
-            btn_frame.grid(row=0, column=5, padx=5)
-            ctk.CTkButton(btn_frame, text="Урон/Лечение", width=100, command=lambda pid=p['idParticipant']: self._damage_dialog(pid), height=24).pack(side="left", padx=2)
-            ctk.CTkButton(btn_frame, text="✕", width=24, height=24, fg_color="#E74C3C", command=lambda pid=p['idParticipant']: self._remove_participant(pid)).pack(side="left", padx=2)
+            btn_frame.grid(row=0, column=6, padx=5, pady=6)
+            ctk.CTkButton(btn_frame, text="Урон/Лечение", width=100, height=24, command=lambda pid=p['idParticipant']: self._damage_dialog(pid)).pack(side="left", padx=2)
+            ctk.CTkButton(btn_frame, text="✕", width=26, height=24, fg_color="#E74C3C", hover_color="#C0392B", command=lambda pid=p['idParticipant']: self._remove_participant(pid)).pack(side="left", padx=2)
             
-            self.participant_rows[p['idParticipant']] = {"row": row, "indicator": ctk.CTkLabel(row, text="▶ " if idx == self.current_turn_index else " ", width=20), "hp_label": hp_label}
+            self.participant_rows[p['idParticipant']] = {"row": row, "hp_label": hp_label}
 
     def _add_participant_dialog(self):
         dialog = ctk.CTkToplevel(self)
@@ -194,11 +215,20 @@ class CombatView(ctk.CTkFrame):
         
     def _add_character_to_combat(self, char, dialog):
         try:
-            stats = self.db.fetchone("SELECT MaxHP, CurrentHP FROM `characterstats` WHERE idCharacter = %s", (char['idCharacter'],))
+            stats = self.db.fetchone("SELECT * FROM `characterstats` WHERE idCharacter = %s", (char['idCharacter'],))
             attrs = self.db.fetchone("SELECT Dexterity FROM `attribute` WHERE idCharacter = %s", (char['idCharacter'],))
             max_hp = stats['MaxHP'] if stats else 10; dex_mod = DiceEngine.calc_modifier(attrs['Dexterity']) if attrs else 0
             initiative = random.randint(1, 20) + dex_mod
-            self.db.execute("INSERT INTO `combatparticipant` (idSession, Name, Initiative, CurrentHP, MaxHP, IsPlayer, Status) VALUES (%s, %s, %s, %s, %s, 1, 'Нормальный')", (self.active_session, char['Name'], initiative, max_hp, max_hp))
+            
+            ac = 10 + dex_mod
+            if stats:
+                if 'AC' in stats and stats['AC'] is not None: ac = stats['AC']
+                elif 'ArmorClass' in stats and stats['ArmorClass'] is not None: ac = stats['ArmorClass']
+                
+            self.db.execute("""
+                INSERT INTO `combatparticipant` (idSession, Name, Initiative, CurrentHP, MaxHP, AC, IsPlayer, Status) 
+                VALUES (%s, %s, %s, %s, %s, %s, 1, 'Нормальный')
+            """, (self.active_session, char['Name'], initiative, max_hp, max_hp, ac))
             self.db.commit(); self._load_combat(); dialog.destroy()
         except Exception as e: print(f"Ошибка добавления персонажа: {e}")
 
@@ -206,8 +236,15 @@ class CombatView(ctk.CTkFrame):
         try:
             name = self.manual_name.get().strip()
             if not name: return
-            max_hp = int(self.manual_hp.get() or 10); init_bonus = int(self.manual_init_bonus.get() or 0); initiative = random.randint(1, 20) + init_bonus
-            self.db.execute("INSERT INTO `combatparticipant` (idSession, Name, Initiative, CurrentHP, MaxHP, IsPlayer, Status) VALUES (%s, %s, %s, %s, %s, 0, 'Нормальный')", (self.active_session, name, initiative, max_hp, max_hp))
+            max_hp = int(self.manual_hp.get() or 10)
+            ac = int(self.manual_ac.get() or 10)
+            init_bonus = int(self.manual_init_bonus.get() or 0)
+            initiative = random.randint(1, 20) + init_bonus
+            
+            self.db.execute("""
+                INSERT INTO `combatparticipant` (idSession, Name, Initiative, CurrentHP, MaxHP, AC, IsPlayer, Status) 
+                VALUES (%s, %s, %s, %s, %s, %s, 0, 'Нормальный')
+            """, (self.active_session, name, initiative, max_hp, max_hp, ac))
             self.db.commit(); self._load_combat(); dialog.destroy()
         except Exception as e: print(f"Ошибка добавления вручную: {e}")
 
@@ -237,7 +274,6 @@ class CombatView(ctk.CTkFrame):
                 value = int(value_entry.get())
                 new_hp = max(0, min(p['MaxHP'], p['CurrentHP'] + value))
                 
-                # ✅ ЛОГИКА СТАТУСОВ
                 if new_hp <= 0:
                     status = "Без сознания"
                 elif new_hp <= p['MaxHP'] / 2:

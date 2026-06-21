@@ -35,7 +35,7 @@ class NotesView(ctk.CTkFrame):
         self.body_text = ctk.CTkTextbox(editor_container, height=120, width=700); self.body_text.pack(pady=5, padx=40)
         btn_frame = ctk.CTkFrame(editor_container,  fg_color="transparent"); btn_frame.pack(pady=10)
         ctk.CTkButton(btn_frame, text="💾 Сохранить", command=self._save_note, width=100).pack(side="left", padx=10)
-        ctk.CTkButton(btn_frame, text="️ Удалить", command=self._delete_note, width=100, fg_color="#E74C3C").pack(side="left", padx=10)
+        ctk.CTkButton(btn_frame, text="️Удалить      ", command=self._delete_note, width=100, fg_color="#E74C3C").pack(side="left", padx=10)
         ctk.CTkButton(btn_frame, text="📄 Экспорт в .txt", command=self._export_txt, width=120).pack(side="left", padx=10)
 
     def _load_all_notes(self): self._load_notes()
